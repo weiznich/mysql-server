@@ -930,7 +930,7 @@ Command::Result Command::cmd_sleep(std::istream & /*input*/,
 Command::Result Command::cmd_login(std::istream & /*input*/,
                                    Execution_context *context,
                                    const std::string &args) {
-  std::string user, pass, db, auth_meth = "SHA256_MEMORY";
+  std::string user, pass, db, auth_meth = "MYSQL41";
 
   if (args.empty()) {
     context->m_connection->get_credentials(&user, &pass);
@@ -1079,7 +1079,7 @@ Command::Result Command::cmd_loginerror(std::istream & /*input*/,
     aux::trim(expected);
     auto protocol = context->m_connection->active_xprotocol();
     expected_error_code = mysqlxtest::get_error_code_by_text(expected);
-    auto err = protocol->execute_authenticate(user, pass, db, "SHA256_MEMORY");
+    auto err = protocol->execute_authenticate(user, pass, db, "MYSQL41");
     context->m_connection->active_holder().remove_notice_handler();
     if (err) {
       if (err.error() == expected_error_code) {

@@ -1043,7 +1043,8 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           /*
             In case the password_expired flag is set ('Y'), then there is no way
             to determine the password format. So, assume that setting the
-            password using the server's default authentication format will work.
+            password using the server's default authentication format
+            (mysql_native_password) will work.
             TODO: make sure this always uses SSL and then let the server
             calculate the scramble.
           */

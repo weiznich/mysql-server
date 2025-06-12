@@ -104,7 +104,7 @@ DROP USER u1a@h, u2a@h, u3a@h;
 ########################################################################
 # A.4. Checking lock-wait-timeout with SET PASSWORD.
 ########################################################################
-CREATE USER u1@h IDENTIFIED WITH 'caching_sha2_password';
+CREATE USER u1@h IDENTIFIED WITH 'mysql_native_password';
 SELECT user, host FROM mysql.user WHERE host = 'h';
 user	host
 u1	h
@@ -122,8 +122,8 @@ ROLLBACK;
 # Connection: con1
 
 # Connection: default
-SELECT user, host, LENGTH(authentication_string)>0 FROM mysql.user WHERE host = 'h';
-user	host	LENGTH(authentication_string)>0
+SELECT user, host, authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548' FROM mysql.user WHERE host = 'h';
+user	host	authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548'
 u1	h	1
 DROP USER u1@h;
 

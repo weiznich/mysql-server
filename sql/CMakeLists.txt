@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -661,6 +661,7 @@ SET(SQL_SHARED_SOURCES
   reference_caching_setup.cc
   sql_event_tracking_to_audit_event_mapping.cc
   command_mapping.cc
+  srv_event_plugin_handles.cc
   )
 
 IF(BUILD_IS_SINGLE_CONFIG)
@@ -796,6 +797,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../mysys/charset.cc
   ../sql-common/client.cc
@@ -911,7 +913,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
   ENDIF()
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
-  IF(MY_COMPILER_IS_GNU)
+  IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
     ADD_COMPILE_FLAGS(
       ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
@@ -1222,7 +1224,6 @@ ENDIF()
 
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
     OR LINUX_INSTALL_RPATH_ORIGIN
-    OR ADD_INSTALL_RPATH_FOR_ICU
     OR TARGET my_tcmalloc
     )
   # Because of INSTALL_DEBUG_TARGET which does INSTALL(FILES ...)
@@ -1234,11 +1235,18 @@ IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
     MESSAGE(STATUS "LINK_FLAGS for mysqld ${mysqld_link_flags}")
   ENDIF()
 
-  # Insert absolute INSTALL_RPATH.
+  # Insert absolute INSTALL_RPATH before $ORIGIN values.
   # This is done in order to support setuid executables, needed by:
-  # https://dev.mysql.com/doc/refman/en/resource-groups.html
+  # https://dev.mysql.com/doc/refman/8.0/en/resource-groups.html
+
+  # Note: for Fedora RPM, this gives ERROR 0008: file '/usr/sbin/mysqld'
+  #       contains the $ORIGIN specifier at the wrong position.
   IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
-    ADD_INSTALL_RPATH(mysqld "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+    GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+    LIST(INSERT CURRENT_RPATH_mysqld 0
+      "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
   ENDIF()
 ENDIF()
 
@@ -1337,7 +1345,7 @@ ELSE()
 ENDIF()
 
 # bison should be REQUIRED, but we have to support source tarball build.
-# https://dev.mysql.com/doc/refman/en/source-installation.html
+# https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
 OPTION(USE_BISON_RESULTS_FROM_MAKE_DIST
   "Use bison results from source distribution tarball"
   ${USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT}

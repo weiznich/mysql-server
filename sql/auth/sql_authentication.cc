@@ -66,6 +66,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "password.h"  // my_make_scrambled_password
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
@@ -268,12 +269,10 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
   Up to MySQL 4.0 the MySQL protocol only supported the
   @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
-  In MySQL 4.1 the mysql_native_password method was added and in MySQL 5.5 arbitrtary
-  authentication methods can be implemented by means of authentication plugins.
-
-  In MySQL 9.0 the mysql_native_password was removed from server code.
-  For compatibility reasons it is still present at client side, but it is converted
-  from built-in into shared form.
+  In MySQL 4.1 the
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  method was added and in MySQL 5.5 arbitrtary authentication methods can be implemented
+  by means of authentication plugins.
 
   If the client or server do no support pluggable authentication
   (i.e. @ref CLIENT_PLUGIN_AUTH capability flag is not set) then
@@ -283,9 +282,10 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
     @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
     if @ref CLIENT_PROTOCOL_41 or @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
     are not set.
-    * The method used is mysql_native_password if both @ref CLIENT_PROTOCOL_41
-    and @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" are set, but
-    @ref CLIENT_PLUGIN_AUTH is not set.
+    * The method used is
+    @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+    if both @ref CLIENT_PROTOCOL_41 and @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+    are set, but @ref CLIENT_PLUGIN_AUTH is not set.
 
   @section sect_protocol_connection_phase_fast_path Authentication Phase Fast Path
 
@@ -342,10 +342,6 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
   packet (provided the authentication was successful).
 
-  @note In MySQL 9.0 the mysql_native_password was removed from server code.
-  For compatibility reasons it is still present at client side, but it is converted
-  from built-in into shared form.
-
   @subsection sect_protocol_connection_phase_fast_path_fails Authentication Fails
 
   It goes exactly like @ref sect_protocol_connection_phase_fast_path_success,
@@ -397,15 +393,12 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   authentication methods in the initial handshake, but the method the server
   used was different from the method required by the user account.
   2. In the 4.1-5.7 server and client the default authentication method is
-  mysql_native_password
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication.
   3. In 8.0 server and client the default authentication method is
   @ref page_caching_sha2_authentication_exchanges.
-  4. In 9.0 server the mysql_native_password was removed from the server code.
-  For compatibility reasons it is still present at client side, but it is converted
-  from built-in into shared form.
-  5. The client and the server can change their default authentication method via the
+  4. The client and the server can change their default authentication method via the
   `--default-auth` option.
-  . A sensibe thing to do for a client would be to see the server's default
+  5. A sensibe thing to do for a client would be to see the server's default
   authentication method announced in the
   @ref page_protocol_connection_phase_packets_protocol_handshake packet and infer the
   authentication method from it instead of using the client default authentication
@@ -459,7 +452,8 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   <ul>
   <li>A client which does not support pluggable authentication
   (@ref CLIENT_PLUGIN_AUTH flag not set) connects to an account which uses
-  authentication method different from mysql_native_password
+  authentication method different from
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   </li>
   <li>
   A client which does not support secure authentication (
@@ -468,8 +462,10 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   </li>
   <li>Server's default authentication method used to generate authentication
   data in @ref page_protocol_connection_phase_packets_protocol_handshake is
-  incompatible with mysql_native_password and client does not support pluggable
-  authentication (@ref CLIENT_PLUGIN_AUTH flag is not set).
+  incompatible with
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  and client does not support pluggable authentication (@ref CLIENT_PLUGIN_AUTH
+  flag is not set).
   </li>
   </ul>
 
@@ -521,16 +517,9 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
   @subsection sect_protocol_connection_phase_auth_method_mismatch_non_client_plugin_auth Non-CLIENT_PLUGIN_AUTH Clients
 
-  @note 9.0 server no longer supports non-CLIENT_PLUGIN_AUTH Clients.
-  Clients with no CLIENT_PLUGIN_AUTH capability are rejected.
-
   @note This can only happen on pre-8.0 servers. 8.0 has the
   @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   removed.
-
-  @note In MySQL 9.0 the mysql_native_password was removed from server code.
-  For compatibility reasons it is still present at client side, but it is converted
-  from built-in into shared form.
 
   The only situation where server will request authentication method change from
   a client which does not set @ref CLIENT_PLUGIN_AUTH flag is when the following
@@ -542,12 +531,15 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   packet.
   2. The client supports secure authentication
   (@ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" is set)
-  3. Server's default authentication method is mysql_native_password
+  3. Server's default authentication method is
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
 
   In this case server sends
   @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request.
   This packet does not contain a new authenticartion method name because it's
-  implicitly assumed to be mysql_native_password and it does not contain authentication data.
+  implicitly assumed to be
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  and it does not contain authentication data.
   Client replies with @ref sect_protocol_connection_phase_packets_protocol_handshake_response320.
   To generate a password hash the client should re-use the random bytes sent by
   the server in the
@@ -600,15 +592,10 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
   @subsection sect_protocol_connection_phase_com_change_user_auth_non_plugin COM_CHANGE_USER and Non-CLIENT_PLUGIN_AUTH Clients
 
-  @note 9.0 server no longer supports non-CLIENT_PLUGIN_AUTH Clients.
-  Clients with no CLIENT_PLUGIN_AUTH capability are rejected.
-
-  @note In MySQL 9.0 the mysql_native_password was removed from server code.
-  For compatibility reasons it is still present at client side, but it is converted
-  from built-in into shared form.
-
   Clients which do not support pluggable authentication can send
-  ::COM_CHANGE_USER command for accounts which use mysql_native_password or
+  ::COM_CHANGE_USER command for accounts which use
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  or
   @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
   In this case it is assumed that server has already sent the authentication
   challenge - the same which was sent when the client connected for the first
@@ -616,7 +603,9 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   password, should be sent in the `auth_response` field of ::COM_CHANGE_USER.
 
   1. The client sends ::COM_CHANGE_USER packet with authentication response
-  (hash of the password) for mysql_native_password (post 4.1 clients) or
+  (hash of the password) for
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  (post 4.1 clients) or
   @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   (pre 4.1 clients) method.
   2. The server responds with an @ref page_protocol_basic_ok_packet and returns
@@ -636,7 +625,8 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   and expect the client to reply with
   @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
 
-  1. The client sends ::COM_CHANGE_USER packet with response for mysql_native_password
+  1. The client sends ::COM_CHANGE_USER packet with response for
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   2. The server replies with
   @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request (0xFE byte)
   3. The client sends response again, this time in the form required by
@@ -763,7 +753,9 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
    </li>
    </ul>
 
-   @note If the server announces mysql_native_password in the
+   @note If the server announces
+   @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+   in the
    @ref page_protocol_connection_phase_packets_protocol_handshake packet
    the client may use the first 8 bytes of its 20-byte auth_plugin_data as input.
 
@@ -775,6 +767,7 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
    @warning The hashing algorithm used for this auth method is *broken* as
    shown in CVE-2000-0981.
 
+   @subpage page_protocol_connection_phase_authentication_methods_native_password_authentication
    @subpage page_caching_sha2_authentication_exchanges
    @subpage page_protocol_connection_phase_authentication_methods_clear_text_password
    @subpage page_protocol_connection_phase_authentication_methods_authentication_windows
@@ -1202,6 +1195,7 @@ LEX_CSTRING validate_password_plugin_name = {
 
 const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
     uint)PLUGIN_LAST] = {{STRING_WITH_LEN("caching_sha2_password")},
+                         {STRING_WITH_LEN("mysql_native_password")},
                          {STRING_WITH_LEN("sha256_password")}};
 
 LEX_CSTRING default_auth_plugin_name{STRING_WITH_LEN("caching_sha2_password")};
@@ -1236,7 +1230,9 @@ Cached_authentication_plugins::Cached_authentication_plugins() {
     if (cached_plugins_names[i].str[0]) {
       cached_plugins[i] = my_plugin_lock_by_name(
           nullptr, cached_plugins_names[i], MYSQL_AUTHENTICATION_PLUGIN);
-      if (!cached_plugins[i]) m_valid = false;
+      /* It's OK to not find mysql_native */
+      if (!cached_plugins[i] && i != PLUGIN_MYSQL_NATIVE_PASSWORD)
+        m_valid = false;
     } else
       cached_plugins[i] = nullptr;
   }
@@ -1593,6 +1589,7 @@ bool auth_plugin_is_built_in(const char *plugin_name) {
   to store their passwords support password expiration atm.
   TODO: create a service and extend the plugin API to support
   password expiration for external plugins.
+
   @retval      false  expiration not supported
   @retval      true   expiration supported
 */
@@ -1849,6 +1846,18 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
       memcpy(scramble_buf, data, data_len);
       memset(scramble_buf + data_len, 0, SCRAMBLE_LENGTH - data_len);
       data = scramble_buf;
+    } else {
+      /*
+        if the default plugin does not provide the data for the scramble at
+        all, we generate a scramble internally anyway, just in case the
+        user account (that will be known only later) uses a
+        mysql_native_password plugin (which needs a scramble). If we don't send
+        a scramble now - wasting 20 bytes in the packet - mysql_native_password
+        plugin will have to send it in a separate packet, adding one more round
+        trip.
+      */
+      generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
+      data = mpvio->scramble;
     }
     data_len = SCRAMBLE_LENGTH;
   }
@@ -1974,9 +1983,13 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   Example:
 
   If the client sends a @ref page_caching_sha2_authentication_exchanges and
-  the server has a mysql_native_password plugin for that user it will ask the
-  client to switch to mysql_native_password and the client will reply from the
-  mysql_native_password plugin:
+  the server has a
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  for that user it will ask the client to switch to
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  and the client will reply from the
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  plugin:
 
   <table>
   <tr><td>
@@ -2103,7 +2116,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     client_auth_plugin.clear();
     client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
                          std::string("..") + std::string(FN_DIRSEP) +
-                         std::string("fake_plugin_name");
+                         std::string("mysql_native_password");
   });
   /*
     If we're dealing with an older client we can't just send a change plugin
@@ -2115,9 +2128,11 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     if normal authentication should continue.
   */
   if (!(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
-    /* client is too old */
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    return true;
+    DBUG_PRINT("info", ("old client sent a COM_CHANGE_USER"));
+    assert(mpvio->cached_client_reply.pkt);
+    /* get the status back so the read can process the cached result */
+    mpvio->status = MPVIO_EXT::RESTART;
+    return false;
   }
 
   DBUG_PRINT("info", ("requesting client to use the %s plugin",
@@ -2341,8 +2356,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     mpvio->acl_user_plugin = mpvio->acl_user->plugin;
   }
 
-  if (!(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
-    /* client is too old */
+  if (!Cached_authentication_plugins::compare_plugin(
+          PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin) &&
+      !(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
+    /* user account requires non-default plugin and the client is too old */
+    assert(!Cached_authentication_plugins::compare_plugin(
+        PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
@@ -2713,26 +2732,22 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     return true;
   }
 
-  if (!protocol->has_client_capability(CLIENT_PLUGIN_AUTH)) {
-    /* client is too old */
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(thd, COM_CONNECT, "%s",
-                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
-    return true;
-  }
-
   const char *client_plugin;
-  client_plugin = ptr;
-  /*
-    ptr needs to be updated to point to correct position so that
-    connection attributes are read properly.
-  */
-  ptr = ptr + strlen(client_plugin) + 1;
+  if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH)) {
+    client_plugin = ptr;
+    /*
+      ptr needs to be updated to point to correct position so that
+      connection attributes are read properly.
+    */
+    ptr = ptr + strlen(client_plugin) + 1;
 
-  if (client_plugin >= end) {
-    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-    return true;
-  }
+    if (client_plugin >= end) {
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+      return true;
+    }
+  } else
+    client_plugin = Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD);
 
   if (ptr > end) {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
@@ -3262,11 +3277,9 @@ skip_to_ssl:
   }
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
-    /* client is too old */
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(thd, COM_CONNECT, "%s",
-                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
-    return packet_error;
+    /* An old client is connecting */
+    client_plugin = Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD);
   }
 
   /*
@@ -3376,15 +3389,6 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   Protocol_classic *protocol = mpvio->protocol;
 
   DBUG_TRACE;
-
-  // sometimes this function is invoked early enough that m_client_capabilities
-  // has value of 0, so even for new client & server the function
-  // has_client_capability() returns 0 !
-  // for example that happens when user authenticates:
-  // a. caching_sha2_password_authenticate() + vio->write_packet() call stack
-  // b. caching_sha2_password_authenticate() + vio->read_packet() +
-  //      parse_client_handshake_packet() call stack
-
   /*
     Reset cached_client_reply if not an old client doing mysql_change_user,
     as this is where the password from COM_CHANGE_USER is stored.
@@ -3395,7 +3399,6 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
             ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
                 ->client_auth_plugin))
     mpvio->cached_client_reply.pkt = nullptr;
-
   /* for the 1st packet we wrap plugin data into the handshake packet */
   if (mpvio->packets_written == 0)
     res = send_server_handshake_packet(
@@ -4641,6 +4644,25 @@ static int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref) {
 }
 
 /**
+
+ @param vio Virtual input-, output interface
+ @param scramble - Scramble to be saved
+
+ Save the scramble in mpvio for future re-use.
+ It is useful when we need to pass the scramble to another plugin.
+ Especially in case when old 5.1 client with no CLIENT_PLUGIN_AUTH capability
+ tries to connect to server with default 1FA set to
+ sha256_password
+
+*/
+
+void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio,
+                                      const char *scramble) {
+  MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+  strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH + 1);
+}
+
+/**
   Compare a clear text password with a stored hash
 
   Checks if a stored hash is produced using a clear text password.
@@ -4745,6 +4767,12 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   */
   if (vio->write_packet(vio, (unsigned char *)scramble, SCRAMBLE_LENGTH + 1))
     return CR_ERROR;
+
+  /*
+    Save the scramble so it could be used by native plugin in case
+    the authentication on the server side needs to be restarted
+  */
+  auth_save_scramble(vio, scramble);
 
   /*
     After the call to read_packet() the user name will appear in
@@ -4885,7 +4913,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (result == 0) {
     if (sha256_password_proxy_users) {
       *info->authenticated_as = PROXY_FLAG;
-      DBUG_PRINT("info", ("sha256_password_proxy_users is enabled \
+      DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled \
 						   , setting authenticated_as to NULL"));
     }
     return CR_OK;

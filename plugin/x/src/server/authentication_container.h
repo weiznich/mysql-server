@@ -52,12 +52,6 @@ class Authentication_container : public iface::Authentication_container {
     m_auth_handlers.emplace_back(name, tls_required, Mech::create);
   }
 
-  template <typename Mech>
-  void add_legacy_authentication_mechanism(const std::string &name,
-                                           const bool tls_required) {
-    m_auth_handlers.emplace_back(name, tls_required, Mech::create, true);
-  }
-
   class Auth_entry {
    public:
     using Create = std::unique_ptr<iface::Authentication> (*)(
@@ -65,16 +59,14 @@ class Authentication_container : public iface::Authentication_container {
 
    public:
     Auth_entry(const std::string &name, const bool is_secure,
-               const Create create, const bool legacy = false)
+               const Create create)
         : m_name(name),
           m_must_be_secure_connection(is_secure),
-          m_create(create),
-          m_legacy{legacy} {}
+          m_create(create) {}
 
     const std::string m_name;
     const bool m_must_be_secure_connection;
     const Create m_create;
-    const bool m_legacy;
   };
 
   using Auth_entries = std::vector<Auth_entry>;

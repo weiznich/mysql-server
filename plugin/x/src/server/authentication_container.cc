@@ -29,7 +29,6 @@
 #include <string>
 
 #include "plugin/x/src/auth_challenge_response.h"
-#include "plugin/x/src/auth_legacy.h"
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/module_mysqlx.h"
 
@@ -38,9 +37,8 @@ namespace xpl {
 Authentication_container::Authentication_container() {
   const bool tls_enabled = true, tls_disabled = false;
 
-  add_legacy_authentication_mechanism<Sasl_legacy_auth>("MYSQL41", tls_enabled);
-  add_legacy_authentication_mechanism<Sasl_legacy_auth>("MYSQL41",
-                                                        tls_disabled);
+  add_authentication_mechanism<Sasl_mysql41_auth>("MYSQL41", tls_enabled);
+  add_authentication_mechanism<Sasl_mysql41_auth>("MYSQL41", tls_disabled);
   add_authentication_mechanism<Sasl_plain_auth>("PLAIN", tls_enabled);
   add_authentication_mechanism<Sasl_sha256_memory_auth>("SHA256_MEMORY",
                                                         tls_enabled);
@@ -78,9 +76,8 @@ Authentication_container::get_authentication_mechanisms(iface::Client *client) {
   result.reserve(m_auth_handlers.size());
 
   for (const auto &item : m_auth_handlers) {
-    if (item.m_must_be_secure_connection != is_secure) continue;
-    if (item.m_legacy) continue;
-    result.push_back(item.m_name);
+    if (item.m_must_be_secure_connection == is_secure)
+      result.push_back(item.m_name);
   }
 
   return result;

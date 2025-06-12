@@ -2268,7 +2268,7 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
   MysqlClient cli;
 
   auto account = SharedServer::caching_sha2_empty_password_account();
-  auto change_user_account = SharedServer::caching_sha2_password_account();
+  auto change_user_account = SharedServer::native_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -2282,18 +2282,8 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
 
   SCOPED_TRACE("// change-user to primary");
 
-  auto change_user_res = cli.change_user(change_user_account.username,
-                                         change_user_account.password, "");
-
-  if (GetParam().client_ssl_mode == kDisabled) {
-    ASSERT_ERROR(change_user_res);
-    // Authentication plugin 'caching_sha2_password' reported error:
-    // Authentication requires secure connection.
-    EXPECT_EQ(change_user_res.error().value(), 2061);
-
-    return;
-  }
-  ASSERT_NO_ERROR(change_user_res);
+  ASSERT_NO_ERROR(cli.change_user(change_user_account.username,
+                                  change_user_account.password, ""));
 
   // executed on the secondary:
   //

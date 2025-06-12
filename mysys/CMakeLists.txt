@@ -126,6 +126,7 @@ SET(MYSYS_SOURCES
   my_getopt.cc
   my_kdf.cc
   my_aes.cc
+  my_sha1.cc
   my_sha2.cc
   my_rnd.cc
   my_openssl_fips.cc

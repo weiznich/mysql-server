@@ -1704,7 +1704,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_native_password.so
 %endif # ssl_default
 
 %if 0%{?compatlib}
@@ -1869,7 +1868,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_native_password.so
 %endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so

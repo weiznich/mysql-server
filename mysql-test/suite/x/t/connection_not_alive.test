@@ -57,6 +57,7 @@ SET SESSION DEBUG="+d,syncpoint_xpl_connection_alive_wait,xpl_connection_alive_o
 SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_connection_alive_wait";
 -->setsession try_update_lock_table
 -->closesession abort
+
 -->setsession
 SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_connection_alive_wait";
 -->query_result
@@ -89,6 +90,7 @@ SET SESSION DEBUG="+d,syncpoint_xpl_connection_alive_wait,xpl_connection_alive_o
 SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_connection_alive_wait";
 -->setsession try_update_table_in_trans
 -->closesession abort
+
 -->setsession
 SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_connection_alive_wait";
 -->query_result

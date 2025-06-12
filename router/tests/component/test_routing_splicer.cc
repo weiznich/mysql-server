@@ -2484,7 +2484,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
       expected_code = 2026;
     }
 
-    EXPECT_EQ(e.code(), expected_code) << e.what();
+    EXPECT_THAT(expected_code, e.code()) << e.what();
   }
 }
 

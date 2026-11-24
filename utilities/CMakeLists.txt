@@ -30,13 +30,14 @@ IF(NOT WITH_DEBUG)
   DISABLE_DOCUMENTATION_WARNINGS()
 ENDIF()
 
-IF(NOT CMAKE_CROSSCOMPILING)
-  MYSQL_ADD_EXECUTABLE(comp_err
-    comp_err.cc
-    COMPONENT Test
-    LINK_LIBRARIES mysys
-    )
-ENDIF()
+# comp_err is required to generate mysqld_error.h and friends.
+# Build it even when cross compiling (like comp_client_err below), cmake
+# runs it via CMAKE_CROSSCOMPILING_EMULATOR if one is configured.
+MYSQL_ADD_EXECUTABLE(comp_err
+  comp_err.cc
+  COMPONENT Test
+  LINK_LIBRARIES mysys
+  )
 
 MYSQL_ADD_EXECUTABLE(comp_client_err
   comp_client_err.cc

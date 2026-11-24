@@ -33,6 +33,10 @@ IF(HAS_DEPRECATED_NON_PROTOTYPE)
 ENDIF()
 
 IF(NOT WIN32)
+  # The zconf.h from the source directory does not define HAVE_UNISTD_H.
+  # Without this zlib relies on _LARGEFILE64_SOURCE being (implicitly)
+  # defined to include <unistd.h>, which is not the case for musl libc.
+  ADD_DEFINITIONS(-DZ_HAVE_UNISTD_H)
   STRING_APPEND(CMAKE_C_FLAGS " -fvisibility=hidden")
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
 ENDIF()
